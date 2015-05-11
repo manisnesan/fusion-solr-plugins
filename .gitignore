@@ -3,3 +3,6 @@ build
 build-support
 .gradle
 
+.idea
+fusion-solr-plugins.iml
+gradle/
