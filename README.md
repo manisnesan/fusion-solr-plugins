@@ -9,11 +9,12 @@ Downloadable Jar
 
 Download the latest jar file from [releases](https://github.com/LucidWorks/fusion-solr-plugins/releases)
 
-Build Locally
+Build jar files locally
 =============
 
-  * Dependencies
-    JDK 1.6+
+  * Dependencies:
+    * JDK 1.6+
+  * `./gradlew fatJar`
 
 Create the search cluster and import the Solr collection to Fusion
 ==================================================================
