@@ -2,7 +2,7 @@
 Plugins for Solr to communicate with Fusion query and index pipelines. Solr plugins approach should be used when direct
 integration of the application with Fusion query and index pipelines is not possible (WebSphere, Hybris).
  
-The plugins are located inside the jar in `$FUSION_HOME/solr-plugins/fusion`. The jar file is compiled with Oracle JDK 1.6.
+The jar file is compiled with Oracle JDK 1.6 and can be downloaded from [releases](https://github.com/LucidWorks/fusion-solr-plugins/releases).
 
 Downloadable Jar
 =================
