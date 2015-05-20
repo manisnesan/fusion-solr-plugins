@@ -162,6 +162,11 @@ public class LogToFusionComponent extends SearchComponent{
                                       boolean isDistrib) {
     SolrQueryRequest req = rb.req;
 
+    // Allow over-writes via query-param
+    if (rb.req.getParams().get("fusion_base_url") != null) {
+      fusionBaseUrl = rb.req.getParams().get("fusion_base_url");
+    }
+
     String fusionUrl = fusionBaseUrl + "/searchLogs/" + collectionName + "/searchlog";
 
     // create the searchEvent

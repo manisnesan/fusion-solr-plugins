@@ -98,6 +98,11 @@ public class FusionQPSearchComponent extends SearchComponent{
       return;
     }
 
+    // Allow over-writes via query-param
+    if (req.getParams().get("fusion_base_url") != null) {
+     fusionBaseUrl = req.getParams().get("fusion_base_url");
+    }
+
     Boolean queryFusionForParams = req.getParams().getBool("doFusionQuery");
     if (queryFusionForParams != null) {
       if (!queryFusionForParams) {
