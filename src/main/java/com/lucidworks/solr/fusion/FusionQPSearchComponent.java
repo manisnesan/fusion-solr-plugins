@@ -19,6 +19,7 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.handler.component.ResponseBuilder;
 import org.apache.solr.handler.component.SearchComponent;
 import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.response.SolrQueryResponse;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.slf4j.Logger;
@@ -44,6 +45,8 @@ public class FusionQPSearchComponent extends SearchComponent{
   protected static Logger log = LoggerFactory.getLogger(FusionQPSearchComponent.class);
   public static final String IS_FUSION_QUERY_PARAM = "isFusionQuery";
 
+  private final String LANDING_PAGES_PARAM_NAME = "landing-pages";
+  private final String QUERY_PARAM_NAME = "query-params";
 
   private static ObjectMapper objectMapper;
   private HttpClient httpClient;
@@ -121,7 +124,7 @@ public class FusionQPSearchComponent extends SearchComponent{
 
     try {
       log.info("Querying Fusion to get updated list of query params");
-      getQueryParamsFromFusion(fusionBaseUrl, collectionName, req);
+      getQueryParamsFromFusion(fusionBaseUrl, collectionName, req, responseBuilder.rsp);
     } catch (Exception e) {
       log.warn("Exception while querying Fusion for query-params. Continuing with the original params");
       e.printStackTrace();
@@ -154,7 +157,8 @@ public class FusionQPSearchComponent extends SearchComponent{
    */
   private void getQueryParamsFromFusion(String fusionBaseUrl,
                                         String collectionId,
-                                        SolrQueryRequest req) throws Exception {
+                                        SolrQueryRequest req,
+                                        SolrQueryResponse rsp) throws Exception {
 
     String fusionUrl = fusionBaseUrl + "/collections/" + collectionId + "/query-profiles/default/select";
     HttpPost httpPost = new HttpPost(fusionUrl);
@@ -204,16 +208,44 @@ public class FusionQPSearchComponent extends SearchComponent{
     try {
       if (response != null) {
         // parse the JSON response from Fusion
-        Map<String, List<String>> params = objectMapper.readValue(response,
-          new TypeReference<Map<String, List<String>>>(){});
-        ModifiableSolrParams newParams = new ModifiableSolrParams();
+        Map<String, Object> paramsObject = objectMapper.readValue(response,
+          new TypeReference<Map<String, Object>>(){});
 
-        for (String key: params.keySet()) {
-          for (String value: params.get(key)) {
-            newParams.add(key, value);
+        if (paramsObject.containsKey("fusion")) {
+          Object o = paramsObject.get("fusion");
+          if (o instanceof Map) {
+            Map<String, Object> fusionParamsObject = (Map<String, Object>) o;
+
+            // Parse the query-params Map
+            if (fusionParamsObject.containsKey(QUERY_PARAM_NAME)) {
+              Object o1 = fusionParamsObject.get(QUERY_PARAM_NAME);
+              if (o1 instanceof  Map) {
+                Map<String, List<String>> params = (Map<String, List<String>>) o1;
+
+                ModifiableSolrParams newParams = new ModifiableSolrParams();
+                for (String key: params.keySet()) {
+                  for (String value: params.get(key)) {
+                    newParams.add(key, value);
+                  }
+                }
+                req.setParams(newParams);
+              }
+            }
+
+            // Parse the landing-page values
+            if (fusionParamsObject.containsKey(LANDING_PAGES_PARAM_NAME)) {
+              Object o1 = fusionParamsObject.get(LANDING_PAGES_PARAM_NAME);
+              if (o1 instanceof List) {
+                List<String> landingPages = (List<String>) o1;
+                for (String landingPage: landingPages) {
+                  // TODO: This is not showing up in the XML response and only working in JSON response
+                  rsp.add(LANDING_PAGES_PARAM_NAME, landingPage);
+                }
+              }
+            }
           }
+
         }
-        req.setParams(newParams);
       }
     } catch (Exception e) {
       log.warn("Exception while reading response from Fusion url"  + fusionUrl);
