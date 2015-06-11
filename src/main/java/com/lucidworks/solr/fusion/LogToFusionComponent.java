@@ -171,13 +171,18 @@ public class LogToFusionComponent extends SearchComponent{
 
     // create the searchEvent
     Map<String, Object> searchEvent = new HashMap<String, Object>();
+
     if (isDistrib) {
       searchEvent.put("numFound", getNumDocsDistrib(rb));
     } else {
       searchEvent.put("numFound", getNumDocsNonDistrib(rb));
     }
     searchEvent.put("QTime", getQTime(rb));
+
     NamedList<Object> namedList = req.getParams().toNamedList();
+    namedList.add("path", req.getContext().get("path"));
+    namedList.add("httpMethod", req.getContext().get("httpMethod"));
+    // TODO: could also dig into HttpServletRequest from `sreq.getContext().put("httpRequest", req);` in SolrRequestParsers
     searchEvent.put("queryParams", toMultiMap(namedList));
 
 
