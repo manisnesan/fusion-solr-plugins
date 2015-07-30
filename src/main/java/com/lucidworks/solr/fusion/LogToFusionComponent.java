@@ -228,13 +228,17 @@ public class LogToFusionComponent extends SearchComponent{
     for (int i=0; i<params.size(); i++) {
       String name = params.getName(i);
       Object o = params.getVal(i);
-      if (o instanceof String[]) {
-        String[] multiParams = (String[]) o;
-        for (String o1 : multiParams) {
-          MultiMapSolrParams.addParam(name, o1, map);
+      if (o != null) {
+        if (o instanceof String[]) {
+          String[] multiParams = (String[]) o;
+          for (String o1 : multiParams) {
+            MultiMapSolrParams.addParam(name, o1, map);
+          }
+        } else {
+          MultiMapSolrParams.addParam(name, o.toString(), map);
         }
       } else {
-        MultiMapSolrParams.addParam(name, o.toString(), map);
+        log.warn("Null value for key '" + name + "'");
       }
     }
     return map;
