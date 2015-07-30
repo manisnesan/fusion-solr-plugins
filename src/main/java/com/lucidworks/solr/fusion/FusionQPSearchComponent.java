@@ -19,6 +19,7 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.handler.component.ResponseBuilder;
 import org.apache.solr.handler.component.SearchComponent;
 import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.response.SolrQueryResponse;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.slf4j.Logger;
@@ -103,6 +104,7 @@ public class FusionQPSearchComponent extends SearchComponent{
      fusionBaseUrl = req.getParams().get("fusion_base_url");
     }
 
+    // TODO: we need a test for doFusionQuery, and doc
     Boolean queryFusionForParams = req.getParams().getBool("doFusionQuery");
     if (queryFusionForParams != null) {
       if (!queryFusionForParams) {
@@ -120,8 +122,8 @@ public class FusionQPSearchComponent extends SearchComponent{
     }
 
     try {
-      log.info("Querying Fusion to get updated list of query params");
-      getQueryParamsFromFusion(fusionBaseUrl, collectionName, req);
+      log.info("Querying Fusion to get pipeline params and data");
+      processPipelineDataFromFusion(fusionBaseUrl, collectionName, req, responseBuilder.rsp);
     } catch (Exception e) {
       log.warn("Exception while querying Fusion for query-params. Continuing with the original params");
       e.printStackTrace();
@@ -136,7 +138,7 @@ public class FusionQPSearchComponent extends SearchComponent{
 
   @Override
   public String getDescription() {
-    return "A search component that uses Fusion query-pipelines to retrieve query-params";
+    return "A search component that uses Fusion query-pipelines to retrieve params and data";
   }
 
   @Override
@@ -152,9 +154,9 @@ public class FusionQPSearchComponent extends SearchComponent{
    * In case of an exception while querying or parsing Fusion,
    * do not modify the query-params and continue with the original request.
    */
-  private void getQueryParamsFromFusion(String fusionBaseUrl,
+  private void processPipelineDataFromFusion(String fusionBaseUrl,
                                         String collectionId,
-                                        SolrQueryRequest req) throws Exception {
+                                        SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
 
     String fusionUrl = fusionBaseUrl + "/collections/" + collectionId + "/query-profiles/default/select";
     HttpPost httpPost = new HttpPost(fusionUrl);
@@ -194,31 +196,42 @@ public class FusionQPSearchComponent extends SearchComponent{
     };
 
     log.debug("Executing query " + httpPost.toString() + " with entity " + urlParameters);
-    String response = null;
+    String fusionJSON = null;
     try {
-      response = httpClient.execute(httpPost, responseHandler);
+      fusionJSON = httpClient.execute(httpPost, responseHandler);
     }  catch (Exception e) {
       log.warn("Exception " + e.toString() + " when querying Fusion at url " + fusionUrl);
     }
 
     try {
-      if (response != null) {
+      if (fusionJSON != null) {
         // parse the JSON response from Fusion
-        Map<String, List<String>> params = objectMapper.readValue(response,
-          new TypeReference<Map<String, List<String>>>(){});
-        ModifiableSolrParams newParams = new ModifiableSolrParams();
-
-        for (String key: params.keySet()) {
-          for (String value: params.get(key)) {
-            newParams.add(key, value);
-          }
-        }
-        req.setParams(newParams);
+        overlayFusionData(fusionJSON, req, rsp);
       }
     } catch (Exception e) {
-      log.warn("Exception while reading response from Fusion url"  + fusionUrl);
+      log.warn("Exception while reading response from Fusion url: "  + fusionUrl, e);
       e.printStackTrace();
     }
   }
 
+  public static void overlayFusionData(String fusionJSON, SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper();
+    Map data = objectMapper.readValue(fusionJSON, Map.class);
+    Map fusionData = (Map) (data.get("fusion"));
+    Map queryParams = (Map) fusionData.remove("query-params");  // .remove'd to keep everything else separate
+
+    ModifiableSolrParams newParams = new ModifiableSolrParams(req.getParams());
+    for (Object key : queryParams.keySet()) {
+      for (Object value : (List)queryParams.get(key)) {
+        newParams.add((String) key, (String)value);
+      }
+    }
+    req.setParams(newParams);
+
+    NamedList fusionResponseData = new NamedList();
+    for (Object key : fusionData.keySet()) {
+      fusionResponseData.add(key.toString(), fusionData.get(key));
+    }
+    rsp.add("fusion", fusionResponseData);
+  }
 }
