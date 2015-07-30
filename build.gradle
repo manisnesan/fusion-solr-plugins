@@ -53,7 +53,7 @@ project(":") {
 
   //create a single Jar with the jackson dependencies
   task fatJar(type: Jar) {
-    baseName = "solr-plugins-for-fusion"
+    baseName = "solr-${solrClientVersion}-plugins-for-fusion"
     from { configurations.releaseJars.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
   }
