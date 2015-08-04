@@ -9,7 +9,6 @@ import org.apache.http.util.EntityUtils;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.common.params.MultiMapSolrParams;
 import org.apache.solr.common.params.ShardParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
@@ -23,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 public class LogToFusionComponent extends SearchComponent{
@@ -171,19 +171,13 @@ public class LogToFusionComponent extends SearchComponent{
 
     // create the searchEvent
     Map<String, Object> searchEvent = new HashMap<String, Object>();
-
     if (isDistrib) {
       searchEvent.put("numFound", getNumDocsDistrib(rb));
     } else {
       searchEvent.put("numFound", getNumDocsNonDistrib(rb));
     }
     searchEvent.put("QTime", getQTime(rb));
-
-    NamedList<Object> namedList = req.getParams().toNamedList();
-    namedList.add("path", req.getContext().get("path"));
-    namedList.add("httpMethod", req.getContext().get("httpMethod"));
-    // TODO: could also dig into HttpServletRequest from `sreq.getContext().put("httpRequest", req);` in SolrRequestParsers
-    searchEvent.put("queryParams", toMultiMap(namedList));
+    searchEvent.put("queryParams", toMultiMap(req.getParams()));
 
 
     HttpPost httpPost = new HttpPost(fusionUrl);
@@ -222,26 +216,18 @@ public class LogToFusionComponent extends SearchComponent{
   }
 
 
-  /** Create a Map&lt;String,String[]&gt; from a NamedList */
-  public static Map<String,String[]> toMultiMap(NamedList params) {
-    HashMap<String,String[]> map = new HashMap<String, String[]>();
-    for (int i=0; i<params.size(); i++) {
-      String name = params.getName(i);
-      Object o = params.getVal(i);
-      if (o != null) {
-        if (o instanceof String[]) {
-          String[] multiParams = (String[]) o;
-          for (String o1 : multiParams) {
-            MultiMapSolrParams.addParam(name, o1, map);
-          }
-        } else {
-          MultiMapSolrParams.addParam(name, o.toString(), map);
-        }
-      } else {
-        log.warn("Null value for key '" + name + "'");
+  /** Create a Map&lt;String,String[]&gt; from {@link org.apache.solr.common.params.SolrParams}*/
+  public static Map<String, String[]> toMultiMap(SolrParams solrParams) {
+    HashMap<String,String[]> multiValuedMap = new HashMap<String, String[]>();
+    Iterator<String> params = solrParams.getParameterNamesIterator();
+    while (params.hasNext()) {
+      String param = params.next();
+      String[] values = solrParams.getParams(param);
+      if (values != null) {
+        multiValuedMap.put(param, values);
       }
     }
-    return map;
+    return multiValuedMap;
   }
 
 }
