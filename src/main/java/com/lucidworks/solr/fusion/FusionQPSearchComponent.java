@@ -220,7 +220,7 @@ public class FusionQPSearchComponent extends SearchComponent{
     Map fusionData = (Map) (data.get("fusion"));
     Map queryParams = (Map) fusionData.remove("query-params");  // .remove'd to keep everything else separate
 
-    ModifiableSolrParams newParams = new ModifiableSolrParams(req.getParams());
+    ModifiableSolrParams newParams = new ModifiableSolrParams();
     for (Object key : queryParams.keySet()) {
       for (Object value : (List)queryParams.get(key)) {
         newParams.add((String) key, (String)value);
