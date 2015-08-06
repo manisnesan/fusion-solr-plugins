@@ -68,7 +68,7 @@ Configure solrconfig.xml to use Fusion Query Pipelines
 
 * Add the jar file location to the `solrconfig.xml` config file for the collection that you would like to use.
 
-        <lib dir="$FUSION_HOME/solr-plugins/fusion"/>
+        <lib dir="{plugins_dir}" regex="solr-{version_number}-plugins-for-fusion.*\.jar" />
 
 * Add the searchComponents `FusionQPSearchComponent` and `LogToFusionComponent` to the solrconfig.xml file. The two parameters that the component requires are 'fusion_base_url' and 'collection_name'. 
 
